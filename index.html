@@ -3,358 +3,400 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>コイン投げ仮説検定シミュレーター</title>
+    <title>仮説検定シミュレーター（母比率の検定）</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', 'Noto Sans JP', sans-serif;
         }
-        .control-panel label {
-            font-weight: 500;
+        .range-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #3b82f6;
+            cursor: pointer;
+            border-radius: 50%;
         }
-        .control-panel input[type="number"], .control-panel input[type="range"] {
-            width: 100%;
-        }
-        .btn {
-            transition: all 0.2s ease-in-out;
-        }
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        .range-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #3b82f6;
+            cursor: pointer;
+            border-radius: 50%;
         }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800 p-4 sm:p-6 md:p-8">
-    <div class="max-w-7xl mx-auto">
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
         <header class="text-center mb-8">
-            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">コイン投げ仮説検定シミュレーター</h1>
-            <p class="mt-2 text-md sm:text-lg text-gray-600">統計的な「偶然」をシミュレーションで体感し、仮説検定の考え方を学びましょう。</p>
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-600">仮説検定シミュレーター</h1>
+            <p class="mt-2 text-lg text-gray-600">母比率の検定を視覚的に理解しよう</p>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- コントロールパネル -->
-            <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-md control-panel space-y-6">
-                <h2 class="text-2xl font-bold border-b pb-3 mb-4">シミュレーション設定</h2>
-                <div>
-                    <label for="numTrials" class="block text-sm text-gray-700">1セットあたりのコインを投げる回数 (n)</label>
-                    <input type="number" id="numTrials" value="100" min="1" max="1000" class="mt-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <!-- 設定パネル -->
+            <div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-lg">
+                <h2 class="text-2xl font-bold mb-6 border-b pb-3 text-gray-700">設定</h2>
+
+                <!-- 1. 検定の種類 -->
+                <div class="mb-6">
+                    <label class="block text-md font-semibold text-gray-600 mb-2">1. 検定の種類</label>
+                    <div class="flex space-x-4" id="test-type">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="testType" value="two-sided" class="form-radio text-blue-600" checked>
+                            <span class="text-gray-700">両側検定</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="testType" value="right-sided" class="form-radio text-blue-600">
+                            <span class="text-gray-700">片側(右)</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="testType" value="left-sided" class="form-radio text-blue-600">
+                            <span class="text-gray-700">片側(左)</span>
+                        </label>
+                    </div>
                 </div>
-                <div>
-                    <label for="numSets" class="block text-sm text-gray-700">セット数（シミュレーションの繰り返し回数）</label>
-                    <input type="number" id="numSets" value="1000" min="1" max="10000" class="mt-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+
+                <!-- 2. 帰無仮説の確率 -->
+                <div class="mb-6">
+                    <label for="null-probability" class="block text-md font-semibold text-gray-600 mb-2">2. 帰無仮説の確率 (p₀)</label>
+                    <div class="flex items-center space-x-3">
+                        <input type="range" id="null-probability-range" min="0.01" max="0.99" step="0.01" value="0.5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer range-slider">
+                        <input type="number" id="null-probability-number" min="0.01" max="0.99" step="0.01" value="0.5" class="w-24 p-2 border rounded-md text-center">
+                    </div>
                 </div>
-                <div>
-                    <label for="probHeads" class="block text-sm text-gray-700">表が出る確率 (p): <span id="probValue" class="font-bold text-blue-600">50</span>%</label>
-                    <input type="range" id="probHeads" min="0" max="100" value="50" class="mt-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+
+                <!-- 3. 無作為抽出の個数 -->
+                <div class="mb-6">
+                    <label for="sample-size" class="block text-md font-semibold text-gray-600 mb-2">3. 無作為抽出の個数 (n)</label>
+                    <div class="flex items-center space-x-3">
+                         <input type="range" id="sample-size-range" min="30" max="1000" step="10" value="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer range-slider">
+                        <input type="number" id="sample-size-number" min="30" max="1000" step="1" value="100" class="w-24 p-2 border rounded-md text-center">
+                    </div>
                 </div>
-                <div class="flex items-center space-x-3 pt-2">
-                     <input type="checkbox" id="showNormalDist" class="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                    <label for="showNormalDist" class="text-sm text-gray-700">理想的な正規分布を表示する</label>
+                
+                <!-- 4. 該当の個数 -->
+                <div class="mb-6">
+                    <label for="observed-count" class="block text-md font-semibold text-gray-600 mb-2">4. 該当の個数 (x)</label>
+                    <div class="flex items-center space-x-3">
+                        <input type="range" id="observed-count-range" min="0" max="100" step="1" value="60" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer range-slider">
+                        <input type="number" id="observed-count-number" min="0" max="100" step="1" value="60" class="w-24 p-2 border rounded-md text-center">
+                    </div>
                 </div>
-                <div class="flex flex-col sm:flex-row gap-4 pt-4">
-                    <button id="runButton" class="w-full btn bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700">
-                        シミュレーション実行
-                    </button>
-                    <button id="resetButton" class="w-full btn bg-gray-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600">
-                        リセット
-                    </button>
+
+                <!-- 5. 有意水準 -->
+                <div class="mb-6">
+                    <label for="significance-level" class="block text-md font-semibold text-gray-600 mb-2">5. 有意水準 (α)</label>
+                    <select id="significance-level" class="w-full p-2 border rounded-md bg-white">
+                        <option value="0.10">10%</option>
+                        <option value="0.05" selected>5%</option>
+                        <option value="0.01">1%</option>
+                    </select>
                 </div>
             </div>
 
-            <!-- 結果表示エリア -->
-            <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-md">
-                <h2 class="text-2xl font-bold border-b pb-3 mb-4">結果の可視化</h2>
-                <div id="resultsArea" class="space-y-6">
-                    <canvas id="histogram" class="w-full h-96"></canvas>
-                    <div class="overflow-x-auto">
-                        <h3 class="text-lg font-semibold mb-2 text-gray-800">度数分布表</h3>
-                        <table class="min-w-full bg-white border border-gray-200 text-sm">
-                            <tbody id="frequencyTable">
-                                <!-- JavaScriptによって動的に生成されます -->
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full bg-white border border-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">項目</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">値</th>
-                                </tr>
-                            </thead>
-                            <tbody id="summaryTable" class="bg-white divide-y divide-gray-200">
-                                <tr><td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">平均 (表の回数)</td><td id="mean" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">-</td></tr>
-                                <tr><td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">標準偏差 (表の回数)</td><td id="stdDev" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">-</td></tr>
-                                <tr><td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">理論上の平均 (n * p)</td><td id="theoreticalMean" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">-</td></tr>
-                                <tr><td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">理論上の標準偏差 (sqrt(n*p*(1-p)))</td><td id="theoreticalStdDev" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">-</td></tr>
-                            </tbody>
-                        </table>
+            <!-- 結果とグラフ -->
+            <div class="lg:col-span-2 space-y-8">
+                <!-- 計算結果 -->
+                <div class="bg-white p-6 rounded-2xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-700">計算結果</h2>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <p class="text-sm text-blue-800 font-semibold">標本比率 (p̂)</p>
+                            <p id="sample-proportion" class="text-2xl font-bold text-blue-600">-</p>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <p class="text-sm text-green-800 font-semibold">期待値 (μ)</p>
+                            <p id="expected-value" class="text-2xl font-bold text-green-600">-</p>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg">
+                            <p class="text-sm text-purple-800 font-semibold">標準偏差 (σ)</p>
+                            <p id="standard-deviation" class="text-2xl font-bold text-purple-600">-</p>
+                        </div>
+                        <div class="bg-yellow-50 p-4 rounded-lg col-span-2 md:col-span-1">
+                             <p class="text-sm text-yellow-800 font-semibold">検定統計量 (z)</p>
+                            <p id="z-value" class="text-2xl font-bold text-yellow-600">-</p>
+                        </div>
+                        <div class="bg-red-50 p-4 rounded-lg col-span-2 md:col-span-2">
+                             <p class="text-sm text-red-800 font-semibold">検定結果</p>
+                            <p id="test-result" class="text-xl font-bold text-red-600">-</p>
+                        </div>
                     </div>
                 </div>
-                 <div id="initialMessage" class="flex items-center justify-center h-full text-gray-500">
-                    <p>上記で設定を入力し、「シミュレーション実行」ボタンを押してください。</p>
+                
+                <!-- グラフ -->
+                <div class="bg-white p-6 rounded-2xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-700">標準正規分布と検定結果</h2>
+                     <div class="relative h-64 md:h-80">
+                        <canvas id="hypothesisChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
+        
+        <footer class="text-center mt-12 text-gray-500">
+            <p>&copy; 2024 高校数学B「統計的な推測」学習支援ツール</p>
+        </footer>
     </div>
 
     <script>
-        // DOM要素の取得
-        const numTrialsInput = document.getElementById('numTrials');
-        const numSetsInput = document.getElementById('numSets');
-        const probHeadsSlider = document.getElementById('probHeads');
-        const probValueSpan = document.getElementById('probValue');
-        const runButton = document.getElementById('runButton');
-        const resetButton = document.getElementById('resetButton');
-        const showNormalDistCheckbox = document.getElementById('showNormalDist');
-        const canvas = document.getElementById('histogram');
-        const ctx = canvas.getContext('2d');
-        const initialMessage = document.getElementById('initialMessage');
-        const resultsArea = document.getElementById('resultsArea');
-        
-        let simulationData = [];
-        let histogramData = {};
+        document.addEventListener('DOMContentLoaded', () => {
+            // DOM要素の取得
+            const testTypeElements = document.querySelectorAll('input[name="testType"]');
+            const nullProbRange = document.getElementById('null-probability-range');
+            const nullProbNumber = document.getElementById('null-probability-number');
+            const sampleSizeRange = document.getElementById('sample-size-range');
+            const sampleSizeNumber = document.getElementById('sample-size-number');
+            const observedCountRange = document.getElementById('observed-count-range');
+            const observedCountNumber = document.getElementById('observed-count-number');
+            const significanceLevelSelect = document.getElementById('significance-level');
 
-        // 初期状態では結果表示を隠す
-        resultsArea.style.display = 'none';
+            // 結果表示要素
+            const sampleProportionEl = document.getElementById('sample-proportion');
+            const expectedValueEl = document.getElementById('expected-value');
+            const standardDeviationEl = document.getElementById('standard-deviation');
+            const zValueEl = document.getElementById('z-value');
+            const testResultEl = document.getElementById('test-result');
 
-        // スライダーの値表示を更新
-        probHeadsSlider.addEventListener('input', () => {
-            probValueSpan.textContent = probHeadsSlider.value;
-        });
+            // Chart.jsのコンテキスト
+            const ctx = document.getElementById('hypothesisChart').getContext('2d');
+            let chart;
 
-        // シミュレーション実行ボタンのイベントリスナー
-        runButton.addEventListener('click', runSimulation);
-        
-        // 正規分布表示チェックボックスのイベントリスナー
-        showNormalDistCheckbox.addEventListener('change', () => {
-             if (simulationData.length > 0) {
-                draw();
-             }
-        });
-        
-        // リセットボタンのイベントリスナー
-        resetButton.addEventListener('click', () => {
-            simulationData = [];
-            histogramData = {};
-            clearCanvas();
-            updateTable('-', '-', '-', '-');
-            document.getElementById('frequencyTable').innerHTML = '';
-            initialMessage.style.display = 'flex';
-            resultsArea.style.display = 'none';
-        });
+            // Z値の臨界値 (Critical values)
+            const criticalValues = {
+                '0.10': { 'one-sided': 1.282, 'two-sided': 1.645 },
+                '0.05': { 'one-sided': 1.645, 'two-sided': 1.960 },
+                '0.01': { 'one-sided': 2.326, 'two-sided': 2.576 }
+            };
 
-        // シミュレーションのメイン関数
-        function runSimulation() {
-            initialMessage.style.display = 'none';
-            resultsArea.style.display = 'block';
+            // スライダーと数値入力の同期
+            function syncInputs(rangeInput, numberInput) {
+                rangeInput.addEventListener('input', () => numberInput.value = rangeInput.value);
+                numberInput.addEventListener('input', () => rangeInput.value = numberInput.value);
+            }
+            syncInputs(nullProbRange, nullProbNumber);
+            syncInputs(sampleSizeRange, sampleSizeNumber);
+            
+            // 標本サイズに応じて該当個数の最大値を更新
+            function updateObservedCountMax() {
+                const n = parseInt(sampleSizeNumber.value, 10);
+                observedCountRange.max = n;
+                observedCountNumber.max = n;
+                if (parseInt(observedCountNumber.value, 10) > n) {
+                    observedCountNumber.value = n;
+                    observedCountRange.value = n;
+                }
+            }
+            sampleSizeRange.addEventListener('input', updateObservedCountMax);
+            sampleSizeNumber.addEventListener('input', updateObservedCountMax);
+            syncInputs(observedCountRange, observedCountNumber);
 
-            const numTrials = parseInt(numTrialsInput.value);
-            const numSets = parseInt(numSetsInput.value);
-            const probHeads = parseFloat(probHeadsSlider.value) / 100;
 
-            simulationData = [];
-            for (let i = 0; i < numSets; i++) {
-                let headsCount = 0;
-                for (let j = 0; j < numTrials; j++) {
-                    if (Math.random() < probHeads) {
-                        headsCount++;
+            function calculateAndDraw() {
+                // 1. 設定値を取得
+                const testType = document.querySelector('input[name="testType"]:checked').value;
+                const p0 = parseFloat(nullProbNumber.value);
+                const n = parseInt(sampleSizeNumber.value, 10);
+                const x = parseInt(observedCountNumber.value, 10);
+                const alpha = parseFloat(significanceLevelSelect.value);
+
+                // 2. 基本的な統計量を計算
+                if (n === 0 || isNaN(p0) || isNaN(n) || isNaN(x)) {
+                    // 不正な値の場合は計算しない
+                    sampleProportionEl.textContent = '-';
+                    expectedValueEl.textContent = '-';
+                    standardDeviationEl.textContent = '-';
+                    zValueEl.textContent = '-';
+                    testResultEl.textContent = '有効な数値を入力してください。';
+                    return;
+                }
+                const p_hat = x / n;
+                const mu = n * p0;
+                const sigma_x = Math.sqrt(n * p0 * (1 - p0));
+                
+                // np, n(1-p) が5以上かチェック
+                if (n * p0 < 5 || n * (1-p0) < 5) {
+                   testResultEl.textContent = 'n*p₀ と n*(1-p₀)が5未満のため、正規分布での近似は不適切です。';
+                   // 計算結果は表示
+                   sampleProportionEl.textContent = p_hat.toFixed(3);
+                   expectedValueEl.textContent = mu.toFixed(2);
+                   standardDeviationEl.textContent = sigma_x.toFixed(3);
+                   zValueEl.textContent = '-';
+                   if (chart) chart.destroy();
+                   return;
+                }
+
+
+                // 3. 検定統計量(z値)を計算
+                const z = (x - mu) / sigma_x;
+                
+                // 4. 計算結果を表示
+                sampleProportionEl.textContent = p_hat.toFixed(3);
+                expectedValueEl.textContent = mu.toFixed(2);
+                standardDeviationEl.textContent = sigma_x.toFixed(3);
+                zValueEl.textContent = z.toFixed(3);
+
+                // 5. 仮説検定の判定
+                let criticalValue;
+                let isRejected = false;
+                
+                if (testType === 'two-sided') {
+                    criticalValue = criticalValues[alpha.toFixed(2)]['two-sided'];
+                    if (Math.abs(z) > criticalValue) {
+                        isRejected = true;
+                    }
+                } else if (testType === 'right-sided') {
+                    criticalValue = criticalValues[alpha.toFixed(2)]['one-sided'];
+                    if (z > criticalValue) {
+                        isRejected = true;
+                    }
+                } else { // left-sided
+                    criticalValue = criticalValues[alpha.toFixed(2)]['one-sided'];
+                    if (z < -criticalValue) {
+                        isRejected = true;
                     }
                 }
-                simulationData.push(headsCount);
-            }
-
-            // ヒストグラム用のデータ作成
-            histogramData = {};
-            simulationData.forEach(count => {
-                histogramData[count] = (histogramData[count] || 0) + 1;
-            });
-            
-            updateStatistics();
-            updateFrequencyTable();
-            draw();
-        }
-        
-        // 統計情報を計算して表を更新
-        function updateStatistics() {
-            const numTrials = parseInt(numTrialsInput.value);
-            const probHeads = parseFloat(probHeadsSlider.value) / 100;
-            const numSets = simulationData.length;
-            
-            if (numSets === 0) return;
-
-            const sum = simulationData.reduce((acc, val) => acc + val, 0);
-            const mean = sum / numSets;
-            
-            const sqDiffs = simulationData.map(val => (val - mean) ** 2);
-            const stdDev = Math.sqrt(sqDiffs.reduce((acc, val) => acc + val, 0) / numSets);
-            
-            const theoreticalMean = numTrials * probHeads;
-            const theoreticalStdDev = Math.sqrt(numTrials * probHeads * (1 - probHeads));
-            
-            updateTable(mean.toFixed(2), stdDev.toFixed(2), theoreticalMean.toFixed(2), theoreticalStdDev.toFixed(2));
-        }
-
-        // HTMLのテーブルを更新
-        function updateTable(mean, stdDev, tMean, tStdDev) {
-            document.getElementById('mean').textContent = mean;
-            document.getElementById('stdDev').textContent = stdDev;
-            document.getElementById('theoreticalMean').textContent = tMean;
-            document.getElementById('theoreticalStdDev').textContent = tStdDev;
-        }
-
-        function clearCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-
-        // 度数分布表を更新
-        function updateFrequencyTable() {
-            const tableBody = document.getElementById('frequencyTable');
-            tableBody.innerHTML = ''; // 既存の表をクリア
-
-            const sortedKeys = Object.keys(histogramData).map(Number).sort((a, b) => a - b);
-
-            if (sortedKeys.length === 0) return;
-
-            const headsRow = document.createElement('tr');
-            headsRow.className = 'bg-gray-50';
-            let headsHtml = `<td class="px-4 py-2 text-left font-semibold text-gray-600 sticky left-0 bg-gray-50">表が出た回数</td>`;
-
-            const freqRow = document.createElement('tr');
-            let freqHtml = `<td class="px-4 py-2 text-left font-semibold text-gray-600 sticky left-0 bg-white">度数（セット数）</td>`;
-
-            sortedKeys.forEach(key => {
-                headsHtml += `<td class="px-4 py-2 text-center whitespace-nowrap font-medium text-gray-800">${key}</td>`;
-                freqHtml += `<td class="px-4 py-2 text-center whitespace-nowrap text-gray-600 font-mono">${histogramData[key]}</td>`;
-            });
-
-            headsRow.innerHTML = headsHtml;
-            freqRow.innerHTML = freqHtml;
-
-            tableBody.appendChild(headsRow);
-            tableBody.appendChild(freqRow);
-        }
-
-
-        // ヒストグラムと正規分布曲線の描画
-        function draw() {
-            clearCanvas();
-            
-            const keys = Object.keys(histogramData).map(Number).sort((a,b)=>a-b);
-            const minX = keys.length > 0 ? (keys[0] > 5 ? keys[0] - 5 : 0) : 0;
-            const maxX = keys.length > 0 ? keys[keys.length -1] + 5 : 10;
-            const maxY = keys.length > 0 ? Math.max(...Object.values(histogramData)) : 0;
-
-            // Canvasのサイズとマージン設定
-            const margin = { top: 20, right: 20, bottom: 50, left: 50 };
-            const width = canvas.width - margin.left - margin.right;
-            const height = canvas.height - margin.top - margin.bottom;
-
-            ctx.save();
-            ctx.translate(margin.left, margin.top);
-
-            // ヒストグラムの描画
-            const barWidth = width / (maxX - minX + 1);
-            ctx.fillStyle = 'rgba(59, 130, 246, 0.7)';
-            for (let i = minX; i <= maxX; i++) {
-                const barHeight = (histogramData[i] || 0) / maxY * height;
-                if (barHeight > 0) {
-                    ctx.fillRect( (i-minX) * barWidth, height - barHeight, barWidth -1, barHeight);
-                }
-            }
-
-            // 軸の描画
-            drawAxes(ctx, width, height, minX, maxX, maxY);
-
-            // 正規分布の描画（チェックボックスがONの場合）
-            if (showNormalDistCheckbox.checked) {
-                drawNormalDistribution(ctx, width, height, minX, maxX, maxY);
-            }
-
-            ctx.restore();
-        }
-
-        // 軸を描画するヘルパー関数
-        function drawAxes(ctx, width, height, minX, maxX, maxY) {
-             // X軸
-            ctx.beginPath();
-            ctx.moveTo(0, height);
-            ctx.lineTo(width, height);
-            ctx.strokeStyle = '#333';
-            ctx.stroke();
-
-            // Y軸
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.lineTo(0, height);
-            ctx.stroke();
-
-            // X軸ラベル
-            ctx.textAlign = 'center';
-            ctx.fillStyle = '#333';
-            ctx.font = '12px sans-serif';
-            const xTickInterval = Math.ceil((maxX - minX) / 10);
-            for (let i = minX; i <= maxX; i++) {
-                 if (i > 0 && i % xTickInterval === 0) {
-                    const x = (i - minX + 0.5) * (width / (maxX - minX + 1));
-                    ctx.fillText(i, x, height + 20);
-                }
-            }
-            ctx.fillText('表が出た回数', width / 2, height + 40);
-
-            // Y軸ラベル
-            ctx.textAlign = 'right';
-            ctx.textBaseline = 'middle';
-            const yTickInterval = Math.ceil(maxY / 5);
-             for (let i = 0; i <= maxY; i += yTickInterval) {
-                 if(i > 0){
-                    const y = height - (i / maxY * height);
-                    ctx.fillText(i, -10, y);
-                 }
-            }
-            ctx.save();
-            ctx.rotate(-Math.PI / 2);
-            ctx.textAlign = 'center';
-            ctx.fillText('度数（セット数）', -height / 2, -35);
-            ctx.restore();
-        }
-
-        // 正規分布曲線を描画するヘルパー関数
-        function drawNormalDistribution(ctx, width, height, minX, maxX, maxY) {
-            const numTrials = parseInt(numTrialsInput.value);
-            const probHeads = parseFloat(probHeadsSlider.value) / 100;
-            const mean = numTrials * probHeads;
-            const stdDev = Math.sqrt(numTrials * probHeads * (1 - probHeads));
-            
-            if (stdDev === 0) return;
-
-            const numSets = simulationData.length;
-            const barWidthVal = 1; // 離散分布なので幅は1
-
-            ctx.beginPath();
-            ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
-            ctx.lineWidth = 2;
-
-            let firstPoint = true;
-            for (let x_val = minX; x_val <= maxX; x_val += 0.1) {
-                const pdf = (1 / (stdDev * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * ((x_val - mean) / stdDev) ** 2);
-                const y_val = pdf * numSets * barWidthVal;
-
-                const plotX = (x_val - minX) / (maxX - minX) * width;
-                const plotY = height - (y_val / maxY * height);
                 
-                if (firstPoint) {
-                    ctx.moveTo(plotX, plotY);
-                    firstPoint = false;
+                if (isRejected) {
+                    testResultEl.textContent = `帰無仮説は棄却されます (有意水準${alpha*100}%)`;
+                    testResultEl.classList.remove('text-green-600');
+                    testResultEl.classList.add('text-red-600');
                 } else {
-                    ctx.lineTo(plotX, plotY);
+                    testResultEl.textContent = `帰無仮説は棄却されません (有意水準${alpha*100}%)`;
+                    testResultEl.classList.remove('text-red-600');
+                    testResultEl.classList.add('text-green-600');
                 }
+                
+                // 6. グラフを描画
+                drawChart(z, criticalValue, testType);
             }
-            ctx.stroke();
-        }
 
+            function drawChart(z, criticalValue, testType) {
+                // 標準正規分布の確率密度関数
+                const normDist = (x) => (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-0.5 * x * x);
+                
+                const labels = [];
+                const dataPoints = [];
+                const rejectionRegionData = [];
+
+                for (let i = -4; i <= 4; i += 0.05) {
+                    const x_val = parseFloat(i.toFixed(2));
+                    labels.push(x_val);
+                    dataPoints.push(normDist(x_val));
+
+                    let inRejectionRegion = false;
+                    if (testType === 'two-sided') {
+                        if (x_val > criticalValue || x_val < -criticalValue) {
+                            inRejectionRegion = true;
+                        }
+                    } else if (testType === 'right-sided') {
+                        if (x_val > criticalValue) {
+                            inRejectionRegion = true;
+                        }
+                    } else { // left-sided
+                        if (x_val < -criticalValue) {
+                            inRejectionRegion = true;
+                        }
+                    }
+                    rejectionRegionData.push(inRejectionRegion ? normDist(x_val) : null);
+                }
+
+                if (chart) {
+                    chart.destroy();
+                }
+                
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: '標準正規分布',
+                                data: dataPoints,
+                                borderColor: 'rgb(59, 130, 246)',
+                                borderWidth: 2,
+                                pointRadius: 0,
+                                fill: false,
+                                tension: 0.1
+                            },
+                            {
+                                label: '棄却域',
+                                data: rejectionRegionData,
+                                backgroundColor: 'rgba(239, 68, 68, 0.4)',
+                                borderColor: 'rgba(239, 68, 68, 0)',
+                                pointRadius: 0,
+                                fill: 'origin',
+                                tension: 0.1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                display: false
+                            },
+                            x: {
+                                type: 'linear',
+                                position: 'bottom',
+                                ticks: {
+                                    stepSize: 1
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                            },
+                            tooltip: {
+                                enabled: false
+                            },
+                            annotation: {
+                                annotations: {
+                                    line1: {
+                                        type: 'line',
+                                        scaleID: 'x',
+                                        value: z,
+                                        borderColor: 'rgb(245, 158, 11)',
+                                        borderWidth: 3,
+                                        label: {
+                                            content: `z = ${z.toFixed(3)}`,
+                                            display: true,
+                                            position: 'start',
+                                            backgroundColor: 'rgba(245, 158, 11, 0.8)'
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // イベントリスナーを設定
+            testTypeElements.forEach(el => el.addEventListener('change', calculateAndDraw));
+            nullProbRange.addEventListener('input', calculateAndDraw);
+            nullProbNumber.addEventListener('change', calculateAndDraw);
+            sampleSizeRange.addEventListener('input', calculateAndDraw);
+            sampleSizeNumber.addEventListener('change', calculateAndDraw);
+            observedCountRange.addEventListener('input', calculateAndDraw);
+            observedCountNumber.addEventListener('change', calculateAndDraw);
+            significanceLevelSelect.addEventListener('change', calculateAndDraw);
+
+            // 初期描画
+            updateObservedCountMax();
+            calculateAndDraw();
+            lucide.createIcons();
+        });
     </script>
 </body>
 </html>
-
